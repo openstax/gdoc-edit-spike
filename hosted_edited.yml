@@ -1,0 +1,208 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: 'Hosted Edited Pages'
+
+Parameters:
+  EnvName:
+    Type: String
+    Description: The name of the environment, e.g. 'staging', 'production'
+
+  CertificateArn:
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Default: '/certs/wildcard'
+
+  HostedZoneName:
+    Description: name of the hosted zone to use
+    Type: String
+    ConstraintDescription: must be a valid Route53 hosted zone domain; no period at end
+
+  Domain:
+    Description: Domain for the distribution, e.g. "openstax.org", configured in Route53
+    Type: String
+    ConstraintDescription: must be a valid domain name
+
+Conditions:
+  # Lambda@Edge functions need to be created in us-east-1; there might be a way
+  # to set up other resources in other regions using StackSets, but for now force
+  # the region with this condition.
+  WrongRegion: !Not [!Equals [!Ref 'AWS::Region', us-east-1]]
+
+Resources:
+
+  OriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allowing the hosted edited CloudFront distribution access to the S3 bucket
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub ${EnvName}-hosted-edited-${AWS::Region}
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: !Join [ "", [ "arn:aws:s3:::", !Ref Bucket, "/*" ] ]
+            Principal:
+              CanonicalUser: !GetAtt OriginAccessIdentity.S3CanonicalUserId
+          - Action:
+              - s3:ListBucket # lets S3 return 404's
+            Effect: Allow
+            Resource: !Join [ "", [ "arn:aws:s3:::", !Ref Bucket ] ]
+            Principal:
+              CanonicalUser: !GetAtt OriginAccessIdentity.S3CanonicalUserId
+
+  Dns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      RecordSets:
+        - Name: !Sub '${Domain}.'
+          Type: A
+          AliasTarget:
+            HostedZoneId: Z2FDTNDATAQYW2 # Indicates CloudFront
+            DNSName: !GetAtt 'Distribution.DomainName'
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub '${EnvName}-hosted-edited'
+        Aliases:
+          - !Ref 'Domain'
+
+        CacheBehaviors:
+          - PathPattern: robots.txt
+            TargetOriginId: RobotsOrigin
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            DefaultTTL: 100
+            MaxTTL: 100
+            MinTTL: 100
+            ForwardedValues:
+              Cookies:
+                Forward: none
+              QueryString: 'false'
+            ViewerProtocolPolicy: redirect-to-https
+
+          - PathPattern: assets/*
+            TargetOriginId: AssetsOrigin
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            DefaultTTL: 86400
+            MaxTTL: 86400
+            MinTTL: 86400
+            ForwardedValues:
+              Cookies:
+                Forward: none
+              QueryString: 'false'
+            ViewerProtocolPolicy: redirect-to-https
+
+        DefaultCacheBehavior:
+          TargetOriginId: HostedContentOrigin
+          AllowedMethods:
+            - 'HEAD'
+            - 'GET'
+          CachedMethods:
+            - 'HEAD'
+            - 'GET'
+          Compress: true
+          DefaultTTL: 0
+          MaxTTL: 0
+          MinTTL: 0
+          ForwardedValues:
+            Cookies:
+              Forward: 'none'
+            Headers:
+              - 'CloudFront-Viewer-Country'
+            QueryString: false
+          ViewerProtocolPolicy: 'redirect-to-https'
+
+        Origins:
+          - Id: HostedContentOrigin
+            DomainName: !Join [ "", [!Ref Bucket, ".s3.amazonaws.com" ] ]
+            OriginPath: /hosted
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub
+                - origin-access-identity/cloudfront/${OAIValue}
+                - { OAIValue: !Ref OriginAccessIdentity }
+
+          - Id: RobotsOrigin
+            DomainName: !Join [ "", [!Ref Bucket, ".s3.amazonaws.com" ] ]
+            OriginPath: /robots
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub
+                - origin-access-identity/cloudfront/${OAIValue}
+                - { OAIValue: !Ref OriginAccessIdentity }
+
+          - Id: AssetsOrigin
+            DomainName: !Join [ "", [!Ref Bucket, ".s3.amazonaws.com" ] ]
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub
+                - origin-access-identity/cloudfront/${OAIValue}
+                - { OAIValue: !Ref OriginAccessIdentity }
+
+        DefaultRootObject: ''
+        Enabled: true
+        HttpVersion: 'http1.1'
+        IPV6Enabled: true
+        PriceClass: 'PriceClass_All'
+        ViewerCertificate:
+          AcmCertificateArn: !Ref 'CertificateArn'
+          SslSupportMethod: sni-only
+      Tags:
+        - Key: Environment
+          Value: !Ref 'EnvName'
+        - Key: Application
+          Value: HostedEdited
+        - Key: Project
+          Value: HostedEdited
+        - Key: Owner
+          Value: jpslav
+
+  # This resource will only be created when trying to deploy in a wrong region
+  YouAreInTheWrongRegion:
+    Type: "AWS::SSM::Parameter"
+    Condition: WrongRegion
+    Properties:
+      Name: '' # Leave name empty to force a fail
+      Type: String
+
+Outputs:
+  DistributionId:
+    Description: 'Id for our cloudfront distribution'
+    Value: !Ref Distribution
+  RawDistributionDomainName:
+    Description: 'Domain name for our cloudfront distribution'
+    Value: !GetAtt Distribution.DomainName
+  DistributionDomainName:
+    Description: 'Domain name for our cloudfront distribution'
+    Value: !Ref Domain
+  BucketName:
+    Description: Bucket name
+    Value: !Ref Bucket
+    Export:
+      Name: HostedEditedBucketName
+

@@ -1,0 +1,122 @@
+GIT
+  remote: https://github.com/openstax/aws-ruby.git
+  revision: e9c48ed2b9aa4ca10823732a76646ed7c2fd6d99
+  ref: e9c48ed2b9aa4ca10823732a76646ed7c2fd6d99
+  specs:
+    openstax_aws (0.1.0)
+      activesupport
+      aws-sdk-autoscaling (~> 1)
+      aws-sdk-cloudformation (~> 1)
+      aws-sdk-cloudfront (~> 1)
+      aws-sdk-ec2 (~> 1)
+      aws-sdk-s3 (~> 1)
+      aws-sdk-ssm (~> 1)
+      git
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    activesupport (6.0.2.1)
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      i18n (>= 0.7, < 2)
+      minitest (~> 5.1)
+      tzinfo (~> 1.1)
+      zeitwerk (~> 2.2)
+    addressable (2.7.0)
+      public_suffix (>= 2.0.2, < 5.0)
+    aws-eventstream (1.0.3)
+    aws-partitions (1.273.0)
+    aws-sdk-autoscaling (1.30.0)
+      aws-sdk-core (~> 3, >= 3.71.0)
+      aws-sigv4 (~> 1.1)
+    aws-sdk-cloudformation (1.30.0)
+      aws-sdk-core (~> 3, >= 3.71.0)
+      aws-sigv4 (~> 1.1)
+    aws-sdk-cloudfront (1.25.0)
+      aws-sdk-core (~> 3, >= 3.71.0)
+      aws-sigv4 (~> 1.1)
+    aws-sdk-core (3.90.1)
+      aws-eventstream (~> 1.0, >= 1.0.2)
+      aws-partitions (~> 1, >= 1.239.0)
+      aws-sigv4 (~> 1.1)
+      jmespath (~> 1.0)
+    aws-sdk-ec2 (1.143.0)
+      aws-sdk-core (~> 3, >= 3.71.0)
+      aws-sigv4 (~> 1.1)
+    aws-sdk-kms (1.29.0)
+      aws-sdk-core (~> 3, >= 3.71.0)
+      aws-sigv4 (~> 1.1)
+    aws-sdk-s3 (1.60.2)
+      aws-sdk-core (~> 3, >= 3.83.0)
+      aws-sdk-kms (~> 1)
+      aws-sigv4 (~> 1.1)
+    aws-sdk-ssm (1.71.0)
+      aws-sdk-core (~> 3, >= 3.71.0)
+      aws-sigv4 (~> 1.1)
+    aws-sigv4 (1.1.0)
+      aws-eventstream (~> 1.0, >= 1.0.2)
+    byebug (11.1.1)
+    chronic (0.10.2)
+    colored (1.2)
+    command_line_reporter (4.0.1)
+      colored (>= 1.2)
+    concurrent-ruby (1.1.6)
+    crack (0.4.3)
+      safe_yaml (~> 1.0.0)
+    diff-lcs (1.3)
+    dotenv (2.7.5)
+    git (1.6.0)
+      rchardet (~> 1.8)
+    hashdiff (1.0.0)
+    i18n (1.8.2)
+      concurrent-ruby (~> 1.0)
+    jmespath (1.4.0)
+    minitest (5.14.0)
+    public_suffix (4.0.3)
+    rainbow (3.0.0)
+    rchardet (1.8.0)
+    rspec (3.9.0)
+      rspec-core (~> 3.9.0)
+      rspec-expectations (~> 3.9.0)
+      rspec-mocks (~> 3.9.0)
+    rspec-core (3.9.1)
+      rspec-support (~> 3.9.1)
+    rspec-expectations (3.9.0)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.9.0)
+    rspec-mocks (3.9.1)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.9.0)
+    rspec-support (3.9.2)
+    safe_yaml (1.0.5)
+    slop (4.8.0)
+    thor (1.0.1)
+    thread_safe (0.3.6)
+    tzinfo (1.2.6)
+      thread_safe (~> 0.1)
+    vcr (5.1.0)
+    webmock (3.8.2)
+      addressable (>= 2.3.6)
+      crack (>= 0.3.2)
+      hashdiff (>= 0.4.0, < 2.0.0)
+    zeitwerk (2.2.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  activesupport
+  byebug
+  chronic
+  command_line_reporter
+  dotenv
+  openstax_aws!
+  rainbow
+  rspec
+  slop
+  thor
+  vcr
+  webmock
+
+BUNDLED WITH
+   2.0.2

@@ -1,0 +1,64 @@
+<html>
+  <head>
+    <title>%%TITLE%%</title>
+   <style type="text/css" media="screen">
+  html, body {
+     position: absolute;
+     height: 100%;
+     max-height: 100%;
+     width: 100%;
+     margin: 0;
+     padding: 0;
+   }
+   iframe {
+     position: absolute;
+     height: 100%;
+     width: 100%;
+     border: none;
+   }
+   #container {
+     position: absolute;
+     top: 0px; /* Change with Height of #header */
+     bottom: 0;
+     width: 100%;
+     overflow: hidden ;
+     /*margin-left:-72px;*/
+     margin-top:-20px;
+ /*    margin-right: -72px;*/
+   }
+   #header {
+    z-index: 100;
+     position: absolute;
+     top: 0px;
+     height: 50px; /* Change with top of #container */
+     color: black;
+     background-color: #eee;
+     width: 100%;
+   }
+
+   #title {
+    font-size: 30px;
+   }
+
+   #subtitle {
+    font-size: 16px;
+    float:right;
+   }
+  </style>
+  </head>
+  <body>
+    <div id="header">
+      <div id="subtitle">Edited from <a href="https://openstax.org/details/books/calculus-volume-1">OpenStax Calculus</a></div>
+      <div id="title">%%TITLE%%</div>
+
+    </div>
+    <div id="container">
+      <iframe src="https://docs.google.com/document/d/%%FILEID%%/pub?embedded=true&headers=false" width="100%"></iframe>
+
+    </div>
+    <div>
+      Footer
+    </div>
+
+  </body>
+</html>

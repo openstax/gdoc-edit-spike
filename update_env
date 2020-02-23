@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+require_relative "script_requires"
+
+require_relative "deployment"
+
+def main
+  opts = Slop.parse do |slop|
+    standard_slop_args(slop,
+      include: [:do_it],
+      about: <<~ABOUT
+        Updates the hosted edited bucket and distribution
+      ABOUT
+    )
+    slop.string '--env_name', 'name of environment', required: true
+    slop.string '--region', 'AWS region', default: 'us-east-1'
+  end
+
+  init_openstax_aws(is_production: opts.production_aws?)
+
+  deployment = Deployment.new(env_name: opts[:env_name],
+                              region: opts[:region],
+                              in_aws_sandbox: !opts.production_aws?,
+                              dry_run: !opts.do_it?)
+
+  # If env_name already deployed, our call here to create it will fail with
+  # e.g. 'Stack [interactions-may21-b-network] already exists'
+
+  deployment.update
+end
+
+main

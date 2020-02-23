@@ -1,0 +1,205 @@
+#!/usr/bin/env python
+
+"""Uploads a document as a GDoc, publishes, and shares it with a faculty member
+
+Usage:
+  do_it --filename <filename> --name <name> --email <email> --bucket <bucket>
+
+Options:
+  -h --help              Show this help
+  --filename <filename>  The path of the document file (docx) to upload
+  --name <name>          The name of the document
+  --email <email>        The email of the faculty member to share it with
+  --bucket <bucket>      The bucket name
+
+Prerequisite: have a Google app with the Drive and Docs API enabled, and download
+its credentials.json file into this code directory
+
+"""
+
+from docopt import docopt
+import pickle
+import os.path
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+import uuid
+import boto3
+
+WEB_ROOT = "https://customized-dev.sandbox.openstax.org/"
+
+if __name__ == '__main__':
+    arguments = docopt(__doc__)
+
+def credentials():
+    # Copied from Python Quickstart for Google Drive
+    creds = None
+    # The file token.pickle stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            # If change the scopes, delete existing the token.pickle file
+            scopes = ['https://www.googleapis.com/auth/drive.file']
+            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', scopes)
+            creds = flow.run_local_server(port=5000)
+        # Save the credentials for the next run
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+
+    return creds
+
+class File:
+    # Docs reference
+    # http://googleapis.github.io/google-api-python-client/docs/dyn/docs_v1.html
+    # https://developers.google.com/docs/api/reference/rest
+
+    def __init__(self, id, name):
+        self.id = id
+        self.name = name
+        self.raw_drive_api = DriveApi(credentials()).service
+        self.raw_docs_api = build('docs','v1',credentials=credentials())
+        self.footer_id = None
+
+    def publish(self):
+        return self.raw_drive_api.revisions().update(
+            fileId=self.id,
+            revisionId='head',
+            body={
+                'published': True,
+                'publishAuto': True,
+                'publishedOutsideDomain': True
+            }
+        ).execute()
+
+    def published_url(self):
+        # If you look in the GDoc UI you'll see a link that I can't figure out how
+        # to access via the API.  The following link is different but works:
+        return "https://docs.google.com/document/u/2/d/" + self.id + "/pub"
+
+    def get_footer_id(self):
+        if None == self.footer_id:
+            resp = self.raw_docs_api.documents().batchUpdate(
+                documentId=self.id,
+                body={
+                    "requests": [{
+                        "createFooter": {
+                            "type": "DEFAULT"
+                        }
+                    }]
+                }
+            ).execute()
+
+            self.footer_id = resp['replies'][0]['createFooter']['footerId']
+
+        return self.footer_id
+
+    def append_to_footer(self, text):
+        self.raw_docs_api.documents().batchUpdate(
+            documentId=self.id,
+            body={
+                "requests": [{
+                    "insertText": {
+                        "text": text,
+                        "endOfSegmentLocation": {
+                            "segmentId": self.get_footer_id()
+                        }
+                    }
+                }]
+            }
+        ).execute()
+
+    def info(self):
+        return self.raw_docs_api.documents().get(documentId=self.id).execute()
+
+    def set_description(self, text):
+        self.raw_drive_api.files().update(
+            fileId=self.id,
+            body={
+                "description": text
+            }
+        ).execute()
+
+    def add_writer(self, email):
+        self.raw_drive_api.permissions().create(
+            fileId=self.id,
+            body={
+                "role": "writer",
+                "type": "user",
+                "emailAddress": email
+            }
+        ).execute()
+
+class DriveApi:
+    # Drive API reference
+    # http://googleapis.github.io/google-api-python-client/docs/dyn/drive_v3.html
+
+    def __init__(self, credentials):
+        self.service = build('drive', 'v3', credentials=credentials)
+
+    def upload(self, name, filename):
+        file_metadata = {
+            'name': name,
+            'mimeType': 'application/vnd.google-apps.document'
+        }
+        media = MediaFileUpload(filename)
+        file = self.service.files().create(body=file_metadata,
+                                           media_body=media,
+                                           fields='id').execute()
+
+        return File(id=file.get('id'), name=name)
+
+class WebPage:
+    def __init__(self, file):
+        self.file = file
+        self.id = uuid.uuid4().hex
+
+    def contents(self):
+        with open('template.html', 'r') as file:
+            return file.read().replace('%%TITLE%%', self.file.name).replace('%%FILEID%%',self.file.id)
+
+    def write_to_bucket(self, bucket_name):
+        s3 = boto3.resource('s3', region_name='us-east-1')
+        s3.Object(bucket_name, "hosted/" + self.id).put(Body=self.contents(),ContentType="text/html")
+
+
+# Upload the file as a new GDoc that we own
+
+drive_api = DriveApi(credentials())
+file = drive_api.upload(name=arguments["--name"], filename=arguments["--filename"])
+print("Uploaded GDoc with ID " + file.id)
+
+# Publish the GDoc
+
+file.publish()
+print("Published file")
+
+# Make a file in S3 that is wrapped with OpenStax branding
+
+web_page = WebPage(file)
+web_page.write_to_bucket(arguments["--bucket"])
+
+# Add a footer to the doc (TODO add in the hosted link)
+
+file.append_to_footer("Derived from OpenStax blah blah blah CC BY blah blah; get free book at <link> blah blah.  Share this at " + WEB_ROOT + web_page.id + ". Edit at https://docs.google.com/document/d/" + file.id)
+print("Set the footer")
+
+# Add a description to the file
+
+file.set_description("Derived from blah blah CC-BY blah")
+print("Set the description")
+
+# Share the document with another email address; note that we are unable to make this
+# other email address the owner - Google complains if we try that.  There are also
+# settings to control if the email address is notified and if so what that notification
+# says.
+
+file.add_writer(arguments["--email"])
+print("Shared with " + arguments["--email"])
