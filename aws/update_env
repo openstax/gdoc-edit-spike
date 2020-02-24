@@ -9,7 +9,7 @@ def main
     standard_slop_args(slop,
       include: [:do_it],
       about: <<~ABOUT
-        Updates the hosted edited bucket and distribution
+        Updates the customized pages bucket and distribution
       ABOUT
     )
     slop.string '--env_name', 'name of environment', required: true

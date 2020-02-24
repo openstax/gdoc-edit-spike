@@ -1,0 +1,13 @@
+version: '3.7'
+services:
+  app:
+    image: "openstax/gdoc-edit-spike"
+    build: .
+    volumes:
+      - .:/code
+      - ~/.aws/credentials:/root/.aws/credentials
+    networks:
+      - openstax
+networks:
+  openstax:
+    name: openstax

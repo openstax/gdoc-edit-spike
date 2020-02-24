@@ -3,14 +3,15 @@
 """Uploads a document as a GDoc, publishes, and shares it with a faculty member
 
 Usage:
-  do_it --filename <filename> --name <name> --email <email> --bucket <bucket>
+  do_it --filename <filename> --name <name> --email <email> --env_name <env_name> [--production_aws]
 
 Options:
   -h --help              Show this help
   --filename <filename>  The path of the document file (docx) to upload
   --name <name>          The name of the document
   --email <email>        The email of the faculty member to share it with
-  --bucket <bucket>      The bucket name
+  --env_name <env_name>  The environment name
+  --production_aws       If set, uses the production AWS account
 
 Prerequisite: have a Google app with the Drive and Docs API enabled, and download
 its credentials.json file into this code directory
@@ -26,8 +27,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import uuid
 import boto3
-
-WEB_ROOT = "https://customized-dev.sandbox.openstax.org/"
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
@@ -49,12 +48,25 @@ def credentials():
             # If change the scopes, delete existing the token.pickle file
             scopes = ['https://www.googleapis.com/auth/drive.file']
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', scopes)
-            creds = flow.run_local_server(port=5000)
+            # creds = flow.run_local_server(host="0.0.0.0",port=5000)
+            creds = flow.run_console() # Using this approach b/c docker ports and redirect URI issues
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
     return creds
+
+class Deployment:
+    def __init__(self, env_name, is_production):
+        self.env_name = env_name
+        self.is_production = is_production
+        self.web_root = str.join("", [ "https://customized",
+                                       ("" if "production" == env_name else "-" + env_name),
+                                       ("" if is_production else ".sandbox"),
+                                       ".openstax.org" ])
+        self.bucket_name = str.join("", [ env_name,
+                                          ("" if is_production else "-sandbox"),
+                                          "-customized-pages" ])
 
 class File:
     # Docs reference
@@ -82,7 +94,7 @@ class File:
     def published_url(self):
         # If you look in the GDoc UI you'll see a link that I can't figure out how
         # to access via the API.  The following link is different but works:
-        return "https://docs.google.com/document/u/2/d/" + self.id + "/pub"
+        return "https://docs.google.com/document/d/" + self.id + "/pub"
 
     def get_footer_id(self):
         if None == self.footer_id:
@@ -111,6 +123,21 @@ class File:
                         "endOfSegmentLocation": {
                             "segmentId": self.get_footer_id()
                         }
+                    }
+                }, {
+                    "updateTextStyle": {
+                        "range": {
+                            "segmentId": self.get_footer_id(),
+                            "startIndex": 0,
+                            "endIndex": len(text)
+                        },
+                        "textStyle": {
+                            "fontSize": {
+                                "magnitude": 8,
+                                "unit": "PT"
+                            }
+                        },
+                        "fields": "*"
                     }
                 }]
             }
@@ -162,13 +189,17 @@ class WebPage:
         self.id = uuid.uuid4().hex
 
     def contents(self):
-        with open('template.html', 'r') as file:
+        with open('published_page_wrapper_template.html', 'r') as file:
             return file.read().replace('%%TITLE%%', self.file.name).replace('%%FILEID%%',self.file.id)
 
     def write_to_bucket(self, bucket_name):
         s3 = boto3.resource('s3', region_name='us-east-1')
         s3.Object(bucket_name, "hosted/" + self.id).put(Body=self.contents(),ContentType="text/html")
 
+
+# Setup
+
+deployment = Deployment(arguments["--env_name"], arguments["--production_aws"])
 
 # Upload the file as a new GDoc that we own
 
@@ -184,11 +215,13 @@ print("Published file")
 # Make a file in S3 that is wrapped with OpenStax branding
 
 web_page = WebPage(file)
-web_page.write_to_bucket(arguments["--bucket"])
+web_page.write_to_bucket(deployment.bucket_name)
 
 # Add a footer to the doc (TODO add in the hosted link)
 
-file.append_to_footer("Derived from OpenStax blah blah blah CC BY blah blah; get free book at <link> blah blah.  Share this at " + WEB_ROOT + web_page.id + ". Edit at https://docs.google.com/document/d/" + file.id)
+file.append_to_footer(("Derived from OpenStax blah blah blah CC BY blah blah; "
+                       "get free book <a href='https://openstax.org'>here</a> blah blah.  Share this at " + deployment.web_root + "/" + web_page.id +
+                       ". Edit at https://docs.google.com/document/d/" + file.id))
 print("Set the footer")
 
 # Add a description to the file

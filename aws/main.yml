@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: 'Hosted Edited Pages'
+Description: 'Customized Page Hosting'
 
 Parameters:
   EnvName:
@@ -21,6 +21,10 @@ Parameters:
     Type: String
     ConstraintDescription: must be a valid domain name
 
+  BucketName:
+    Description: Name of the bucket that will hold the hosted wrapper pages
+    Type: String
+
 Conditions:
   # Lambda@Edge functions need to be created in us-east-1; there might be a way
   # to set up other resources in other regions using StackSets, but for now force
@@ -33,13 +37,13 @@ Resources:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: Allowing the hosted edited CloudFront distribution access to the S3 bucket
+        Comment: Allowing the customized page CloudFront distribution access to the S3 bucket
 
   Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
-      BucketName: !Sub ${EnvName}-hosted-edited-${AWS::Region}
+      BucketName:  !Ref BucketName
 
   BucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -75,7 +79,7 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
-        Comment: !Sub '${EnvName}-hosted-edited'
+        Comment: !Sub '${EnvName}-customized-pages'
         Aliases:
           - !Ref 'Domain'
 
@@ -121,7 +125,7 @@ Resources:
             ViewerProtocolPolicy: redirect-to-https
 
         DefaultCacheBehavior:
-          TargetOriginId: HostedContentOrigin
+          TargetOriginId: CustomizedPagesOrigin
           AllowedMethods:
             - 'HEAD'
             - 'GET'
@@ -141,7 +145,7 @@ Resources:
           ViewerProtocolPolicy: 'redirect-to-https'
 
         Origins:
-          - Id: HostedContentOrigin
+          - Id: CustomizedPagesOrigin
             DomainName: !Join [ "", [!Ref Bucket, ".s3.amazonaws.com" ] ]
             OriginPath: /hosted
             S3OriginConfig:
@@ -176,9 +180,9 @@ Resources:
         - Key: Environment
           Value: !Ref 'EnvName'
         - Key: Application
-          Value: HostedEdited
+          Value: CustomizedPages
         - Key: Project
-          Value: HostedEdited
+          Value: CustomizedPages
         - Key: Owner
           Value: jpslav
 
@@ -204,5 +208,5 @@ Outputs:
     Description: Bucket name
     Value: !Ref Bucket
     Export:
-      Name: HostedEditedBucketName
+      Name: CustomizedPagesBucketName
 
