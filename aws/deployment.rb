@@ -28,6 +28,7 @@ class Deployment < OpenStax::Aws::DeploymentBase
   end
 
   def delete
+    bucket.objects.batch_delete! # otherwise stack deletion will fail
     main_stack.delete(wait: true)
   end
 
@@ -58,6 +59,10 @@ class Deployment < OpenStax::Aws::DeploymentBase
 
   def bucket_name
     [env_name, (@in_aws_sandbox ? "sandbox" : nil), "customized-pages"].compact.join("-")
+  end
+
+  def bucket
+    Aws::S3::Bucket.new(bucket_name)
   end
 
 end

@@ -60,7 +60,14 @@ RUN pip install pytest pytest-mock --user
 # Install Ruby 2.7
 RUN brew install make
 RUN brew install ruby-build rbenv
-RUN CONFIGURE_OPTS="--with-openssl-dir=`brew --prefix openssl`" rbenv install 2.7.0
-RUN rbenv global 2.7.0
+RUN CONFIGURE_OPTS="--with-openssl-dir=`brew --prefix openssl`" rbenv install 2.6.5
+RUN rbenv global 2.6.5
+RUN echo 'eval "$(rbenv init -)"' >> ~/.bashrc
+
+WORKDIR /code/aws
+RUN gem install bundler:2.1.2
+RUN bundle install
+
+WORKDIR /code
 
 ENTRYPOINT ["/code/docker/entrypoint"]

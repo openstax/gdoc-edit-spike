@@ -27,6 +27,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import uuid
 import boto3
+import time
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
@@ -216,18 +217,21 @@ print("Published file")
 
 web_page = WebPage(file)
 web_page.write_to_bucket(deployment.bucket_name)
+print("Wrote wrapped published file to S3")
 
 # Add a footer to the doc (TODO add in the hosted link)
 
+time.sleep(5) # sometimes the doc takes a while to finish uploading, probably a better way
+              # to do this than sleeping
 file.append_to_footer(("Derived from OpenStax blah blah blah CC BY blah blah; "
-                       "get free book <a href='https://openstax.org'>here</a> blah blah.  Share this at " + deployment.web_root + "/" + web_page.id +
+                       "get free book at PUT LINK HERE blah blah.  Share this at " + deployment.web_root + "/" + web_page.id +
                        ". Edit at https://docs.google.com/document/d/" + file.id))
-print("Set the footer")
+print("Wrote the footer")
 
 # Add a description to the file
 
 file.set_description("Derived from blah blah CC-BY blah")
-print("Set the description")
+print("Wrote the description")
 
 # Share the document with another email address; note that we are unable to make this
 # other email address the owner - Google complains if we try that.  There are also

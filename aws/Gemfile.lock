@@ -89,7 +89,7 @@ GEM
       rspec-support (~> 3.9.0)
     rspec-support (3.9.2)
     safe_yaml (1.0.5)
-    slop (4.8.0)
+    slop (4.7.0)
     thor (1.0.1)
     thread_safe (0.3.6)
     tzinfo (1.2.6)
@@ -113,10 +113,10 @@ DEPENDENCIES
   openstax_aws!
   rainbow
   rspec
-  slop
+  slop (~> 4.7.0)
   thor
   vcr
   webmock
 
 BUNDLED WITH
-   2.0.2
+   2.1.2

@@ -1,5 +1,3 @@
-`bundle install`
-
 require "bundler/setup"
 
 require 'openstax_aws'

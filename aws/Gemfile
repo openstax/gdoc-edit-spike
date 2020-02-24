@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'openstax_aws', git: 'https://github.com/openstax/aws-ruby.git', ref: 'e9c48ed2b9aa4ca10823732a76646ed7c2fd6d99'
-gem 'slop'
+gem 'slop', '~> 4.7.0'
 gem 'byebug'
 gem 'rspec'
 gem 'vcr'
